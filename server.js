@@ -37,7 +37,7 @@ function isRateLimited(ip) {
 }
 
 // ---------- Email sending via Resend ----------
-async function sendEmail({ name, email, matter, message }) {
+async function sendNotificationEmail({ name, email, matter, message }) {
   if (!RESEND_API_KEY || !FROM_EMAIL || !TO_EMAIL) {
     console.warn('Email not sent: RESEND_API_KEY, FROM_EMAIL, or TO_EMAIL is not configured.');
     return { skipped: true };
@@ -57,8 +57,7 @@ async function sendEmail({ name, email, matter, message }) {
       html: `
         <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#F2ECD9;">
           <div style="background:#211D14;padding:28px 32px;text-align:center;">
-            <p style="margin:0;color:#C9A24E;font-family:Consolas,Menlo,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;">New Website Inquiry</p>
-            <h1 style="margin:8px 0 0;color:#F2ECD9;font-size:22px;font-weight:500;">Adriano Law Office</h1>
+            <h1 style="margin:0;color:#F2ECD9;font-size:22px;font-weight:500;">Adriano Law Office</h1>
           </div>
           <div style="padding:32px;background:#FBF8EE;">
             <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;">
@@ -88,6 +87,59 @@ async function sendEmail({ name, email, matter, message }) {
           </div>
           <div style="padding:18px 32px;background:#E9E0C6;text-align:center;">
             <p style="margin:0;font-family:Consolas,Menlo,monospace;font-size:11px;color:#5C5442;">Reply directly to this email to respond to ${escapeHtml(name.split(' ')[0] || 'the sender')}.</p>
+          </div>
+        </div>
+      `,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Resend API error (${res.status}): ${errText}`);
+  }
+  return res.json();
+}
+
+// Sent to the person who submitted the form — confirms receipt, sets expectations
+async function sendConfirmationEmail({ name, email, matter }) {
+  if (!RESEND_API_KEY || !FROM_EMAIL) {
+    console.warn('Confirmation email not sent: RESEND_API_KEY or FROM_EMAIL is not configured.');
+    return { skipped: true };
+  }
+
+  const firstName = escapeHtml(String(name).trim().split(' ')[0] || 'there');
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: FROM_EMAIL,
+      to: [email],
+      subject: `We've received your inquiry — Adriano Law Office`,
+      html: `
+        <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#F2ECD9;">
+          <div style="background:#211D14;padding:28px 32px;text-align:center;">
+            <h1 style="margin:0;color:#F2ECD9;font-size:22px;font-weight:500;">Adriano Law Office</h1>
+          </div>
+          <div style="padding:32px;background:#FBF8EE;">
+            <p style="margin:0 0 16px;color:#211D14;font-size:16px;font-family:Arial,sans-serif;">Hi ${firstName},</p>
+            <p style="margin:0 0 16px;color:#211D14;font-size:15px;line-height:1.7;font-family:Arial,sans-serif;">
+              Thank you for reaching out. Your inquiry regarding <strong>${escapeHtml(matter)}</strong> has been received.
+            </p>
+            <p style="margin:0 0 16px;color:#211D14;font-size:15px;line-height:1.7;font-family:Arial,sans-serif;">
+              Atty. Ernest Adriano III personally reviews every inquiry and will get back to you within a few hours.
+            </p>
+            <div style="margin-top:20px;padding:16px 18px;background:#F2ECD9;border-left:3px solid #C9A24E;border-radius:6px;">
+              <p style="margin:0;color:#5C5442;font-size:13.5px;line-height:1.6;font-family:Arial,sans-serif;">
+                This is an automated confirmation — no need to reply to this message. A personal response will follow separately.
+              </p>
+            </div>
+          </div>
+          <div style="padding:18px 32px;background:#E9E0C6;text-align:center;">
+            <p style="margin:0;font-family:Consolas,Menlo,monospace;font-size:11px;color:#5C5442;">Adriano Law Office &middot; San Fernando, Pampanga</p>
           </div>
         </div>
       `,
@@ -145,10 +197,17 @@ app.post('/api/contact', async (req, res) => {
     };
 
     try {
-      await sendEmail(entry);
+      await sendNotificationEmail(entry);
     } catch (emailErr) {
       console.error('Failed to send notification email:', emailErr.message);
       return res.status(500).json({ ok: false, error: 'Could not send your message right now. Please try again or contact directly.' });
+    }
+
+    // Confirmation to the sender — best-effort, doesn't block the response
+    try {
+      await sendConfirmationEmail(entry);
+    } catch (confirmErr) {
+      console.error('Failed to send confirmation email:', confirmErr.message);
     }
 
     res.json({ ok: true });
