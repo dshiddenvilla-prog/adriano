@@ -5,9 +5,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ---------- Config (set these as Environment Variables on Render) ----------
-const RESEND_API_KEY = process.env.RESEND_API_KEY;       // from resend.com
-const FROM_EMAIL = process.env.FROM_EMAIL;                // e.g. "Website <onboarding@resend.dev>" or your verified domain sender
-const TO_EMAIL = process.env.TO_EMAIL;                     // Atty. Adriano's real inbox
+const BREVO_API_KEY = process.env.BREVO_API_KEY;           // from Brevo dashboard > SMTP & API > API Keys
+const SENDER_EMAIL = process.env.SENDER_EMAIL;              // must be a verified sender in Brevo
+const SENDER_NAME = process.env.SENDER_NAME || 'Adriano Law Office';
+const TO_EMAIL = process.env.TO_EMAIL;                      // Atty. Adriano's real inbox
 
 // ---------- Startup debug (safe — never logs the full key) ----------
 function maskKey(key) {
@@ -16,8 +17,8 @@ function maskKey(key) {
   const hasWhitespace = trimmed !== key;
   return `len=${key.length} starts="${key.slice(0, 5)}" ends="${key.slice(-3)}" trimMismatch=${hasWhitespace}`;
 }
-console.log('RESEND_API_KEY check:', maskKey(RESEND_API_KEY));
-console.log('FROM_EMAIL:', FROM_EMAIL || '(not set)');
+console.log('BREVO_API_KEY check:', maskKey(BREVO_API_KEY));
+console.log('SENDER_EMAIL:', SENDER_EMAIL || '(not set)');
 console.log('TO_EMAIL:', TO_EMAIL || '(not set)');
 
 // ---------- Middleware ----------
@@ -36,25 +37,25 @@ function isRateLimited(ip) {
   return timestamps.length > max;
 }
 
-// ---------- Email sending via Resend ----------
+// ---------- Email sending via Brevo ----------
 async function sendNotificationEmail({ name, email, matter, message }) {
-  if (!RESEND_API_KEY || !FROM_EMAIL || !TO_EMAIL) {
-    console.warn('Email not sent: RESEND_API_KEY, FROM_EMAIL, or TO_EMAIL is not configured.');
+  if (!BREVO_API_KEY || !SENDER_EMAIL || !TO_EMAIL) {
+    console.warn('Email not sent: BREVO_API_KEY, SENDER_EMAIL, or TO_EMAIL is not configured.');
     return { skipped: true };
   }
 
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'api-key': BREVO_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [TO_EMAIL],
-      reply_to: email,
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email: TO_EMAIL }],
+      replyTo: { email },
       subject: `New website inquiry — ${matter}`,
-      html: `
+      htmlContent: `
         <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#F2ECD9;">
           <div style="background:#211D14;padding:28px 32px;text-align:center;">
             <h1 style="margin:0;color:#F2ECD9;font-size:22px;font-weight:500;">Adriano Law Office</h1>
@@ -95,31 +96,31 @@ async function sendNotificationEmail({ name, email, matter, message }) {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Resend API error (${res.status}): ${errText}`);
+    throw new Error(`Brevo API error (${res.status}): ${errText}`);
   }
   return res.json();
 }
 
 // Sent to the person who submitted the form — confirms receipt, sets expectations
 async function sendConfirmationEmail({ name, email, matter }) {
-  if (!RESEND_API_KEY || !FROM_EMAIL) {
-    console.warn('Confirmation email not sent: RESEND_API_KEY or FROM_EMAIL is not configured.');
+  if (!BREVO_API_KEY || !SENDER_EMAIL) {
+    console.warn('Confirmation email not sent: BREVO_API_KEY or SENDER_EMAIL is not configured.');
     return { skipped: true };
   }
 
   const firstName = escapeHtml(String(name).trim().split(' ')[0] || 'there');
 
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${RESEND_API_KEY}`,
+      'api-key': BREVO_API_KEY,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: FROM_EMAIL,
-      to: [email],
+      sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+      to: [{ email, name }],
       subject: `We've received your inquiry — Adriano Law Office`,
-      html: `
+      htmlContent: `
         <div style="font-family:Georgia,'Times New Roman',serif;max-width:600px;margin:0 auto;background:#F2ECD9;">
           <div style="background:#211D14;padding:28px 32px;text-align:center;">
             <h1 style="margin:0;color:#F2ECD9;font-size:22px;font-weight:500;">Adriano Law Office</h1>
@@ -130,7 +131,7 @@ async function sendConfirmationEmail({ name, email, matter }) {
               Thank you for reaching out. Your inquiry regarding <strong>${escapeHtml(matter)}</strong> has been received.
             </p>
             <p style="margin:0 0 16px;color:#211D14;font-size:15px;line-height:1.7;font-family:Arial,sans-serif;">
-              Atty. Ernest Adriano III personally reviews every inquiry and will get back to you within a few hours.
+              Atty. Ernesto Adriano III personally reviews every inquiry and will get back to you within a few hours.
             </p>
             <div style="margin-top:20px;padding:16px 18px;background:#F2ECD9;border-left:3px solid #C9A24E;border-radius:6px;">
               <p style="margin:0;color:#5C5442;font-size:13.5px;line-height:1.6;font-family:Arial,sans-serif;">
@@ -148,7 +149,7 @@ async function sendConfirmationEmail({ name, email, matter }) {
 
   if (!res.ok) {
     const errText = await res.text();
-    throw new Error(`Resend API error (${res.status}): ${errText}`);
+    throw new Error(`Brevo API error (${res.status}): ${errText}`);
   }
   return res.json();
 }
