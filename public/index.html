@@ -49,6 +49,13 @@
 
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
   .section { padding: 88px 0; }
+  @media (max-width: 700px) {
+    .wrap { padding: 0 20px; }
+    .section { padding: 56px 0; }
+  }
+  @media (max-width: 420px) {
+    .wrap { padding: 0 16px; }
+  }
 
   .docket {
     font-family: 'IBM Plex Mono', monospace;
@@ -115,7 +122,39 @@
     transition: background 0.2s ease, color 0.2s ease;
   }
   .nav-cta:hover { background: var(--maroon); border-color: var(--maroon); }
-  @media (max-width: 760px) { nav.links { display: none; } }
+
+  .menu-toggle {
+    display: none; background: none; border: none; cursor: pointer;
+    color: var(--ink); padding: 6px; flex-shrink: 0;
+  }
+  .menu-toggle svg { width: 24px; height: 24px; }
+  .mobile-menu {
+    display: none; flex-direction: column; background: var(--paper);
+    border-top: 1.5px dashed var(--line-strong); overflow: hidden;
+    max-height: 0; transition: max-height 0.25s ease;
+  }
+  .mobile-menu.open { max-height: 400px; }
+  .mobile-menu a {
+    padding: 16px 28px; font-size: 15px; color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  .mobile-menu a:last-child { border-bottom: none; }
+  .mobile-menu-cta { color: var(--maroon) !important; font-weight: 600; }
+
+  @media (max-width: 760px) {
+    nav.links { display: none; }
+    .nav-cta { display: none; }
+    .menu-toggle { display: block; }
+    .mobile-menu { display: flex; }
+    .nav { padding: 13px 20px; }
+    .brand-name { font-size: 15px; }
+    .seal-mark { height: 42px; width: 42px; }
+  }
+  @media (max-width: 400px) {
+    .brand-name { font-size: 13.5px; }
+    .brand-name span { font-size: 8.5px; }
+    .seal-mark { height: 36px; width: 36px; }
+  }
 
   /* ---------- Hero ---------- */
   .hero {
@@ -129,6 +168,9 @@
     margin: 0 auto;
     padding: 96px 28px 88px;
     position: relative;
+  }
+  @media (max-width: 700px) {
+    .hero-inner { padding: 56px 20px 52px; }
   }
   .eyebrow {
     font-family: 'IBM Plex Mono', monospace;
@@ -200,6 +242,9 @@
     margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px;
     border-top: 1.5px dashed var(--line-strong); padding-top: 36px; width: 100%; text-align: center;
   }
+  @media (max-width: 480px) {
+    .hero-photo { width: 128px; height: 128px; }
+  }
   .hero-fact-icon .fact-icon { color: var(--brass); display: flex; justify-content: center; margin-bottom: 12px; }
   .hero-fact-icon .fact-icon svg { width: 26px; height: 26px; }
   .hero-fact-icon h3 { font-family: 'Newsreader', serif; font-size: 16.5px; color: var(--ink); margin-bottom: 6px; }
@@ -254,6 +299,9 @@
     .about-grid { grid-template-columns: 1fr; }
     .about-portrait { max-width: 320px; }
     .credentials { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 380px) {
+    .credentials { grid-template-columns: 1fr; }
   }
 
   /* ---------- Section head ---------- */
@@ -358,6 +406,9 @@
   .map-embed iframe { width: 100%; height: 100%; border: 0; display: block; pointer-events: none; }
 
   form { background: var(--ink); padding: 36px; border-radius: 20px; display: flex; flex-direction: column; gap: 16px; }
+  @media (max-width: 480px) {
+    form { padding: 24px 20px; border-radius: 16px; }
+  }
   form .form-title { color: var(--paper); font-family: 'Newsreader', serif; font-size: 19px; margin-bottom: 4px; }
   .field label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--brass-light); font-weight: 600; margin-bottom: 7px; }
   .field input, .field textarea {
@@ -465,6 +516,16 @@
       <a href="#contact">Contact</a>
     </nav>
     <a href="#contact" class="nav-cta">Book a Consultation</a>
+    <button class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="#about">Attorney Profile</a>
+    <a href="#services">Practice Areas</a>
+    <a href="#faqs">FAQs</a>
+    <a href="#contact">Contact</a>
+    <a href="#contact" class="mobile-menu-cta">Book a Consultation</a>
   </div>
 </header>
 
@@ -623,6 +684,21 @@
       <button type="submit" id="contact-submit">Send Message</button>
       <p class="form-note">This form is for general inquiries and does not establish attorney-client privilege.</p>
     </form>
+    <script>
+      // ---------- Mobile menu ----------
+      const menuToggle = document.getElementById('menu-toggle');
+      const mobileMenu = document.getElementById('mobile-menu');
+      menuToggle.addEventListener('click', () => {
+        const isOpen = mobileMenu.classList.toggle('open');
+        menuToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+      mobileMenu.querySelectorAll('a').forEach(a => {
+        a.addEventListener('click', () => {
+          mobileMenu.classList.remove('open');
+          menuToggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+    </script>
     <script>
       // ---------- Custom dropdown ----------
       const csWrap = document.getElementById('matter-select');
