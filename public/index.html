@@ -463,7 +463,41 @@
   footer a { color: var(--brass-light); }
 
   ::selection { background: var(--maroon); color: var(--card); }
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; animation: none !important; } }
+
+  /* ---------- Scroll reveal ---------- */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.in-view { opacity: 1; transform: translateY(0); }
+
+  /* ---------- Hero fade-in on load ---------- */
+  @keyframes heroFadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .hero-inner > * { animation: heroFadeIn 0.8s ease both; }
+  .hero-inner > *:nth-child(1) { animation-delay: 0.05s; }
+  .hero-inner > *:nth-child(2) { animation-delay: 0.15s; }
+  .hero-inner > *:nth-child(3) { animation-delay: 0.25s; }
+  .hero-inner > *:nth-child(4) { animation-delay: 0.35s; }
+  .hero-inner > *:nth-child(5) { animation-delay: 0.45s; }
+  .hero-inner > *:nth-child(6) { animation-delay: 0.55s; }
+
+  /* ---------- Hover lift for cards & buttons ---------- */
+  .service-card, .faq-item, .credential {
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+  }
+  .service-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 14px 30px rgba(33,29,20,0.14);
+  }
+  .nav-cta, button[type="submit"], .mobile-menu-cta {
+    transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+  .nav-cta:hover, button[type="submit"]:hover { transform: translateY(-2px); }
+
+  /* ---------- Nav underline transition ---------- */
+  nav.links a::after {
+    content: ""; position: absolute; left: 0; bottom: -4px; width: 0; height: 1.5px;
+    background: var(--maroon); transition: width 0.25s ease;
+  }
+  nav.links a:hover::after { width: 100%; }
   a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
     outline: 2px solid var(--maroon); outline-offset: 2px;
   }
@@ -563,7 +597,7 @@
 </section>
 
 <section class="about section" id="about">
-  <div class="wrap about-grid">
+  <div class="wrap about-grid reveal">
     <div class="about-portrait">
       <img src="/images/portrait.jpg" alt="Atty. Ernesto Adriano III">
       <span class="portrait-tag">Atty. Ernesto Adriano III</span>
@@ -584,12 +618,12 @@
 
 <section class="services section" id="services">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="section-eyebrow">Practice Areas</div>
       <h2>Where I can help</h2>
       <p>I scope every engagement to what the matter actually requires — from a single consultation to full representation through trial.</p>
     </div>
-    <div class="services-grid">
+    <div class="services-grid reveal">
       <div class="service-card" data-case="CRIM"><h3>Criminal Litigation</h3><p>Defense from preliminary investigation through trial, including bail applications and appeals.</p></div>
       <div class="service-card" data-case="CIVIL"><h3>Civil Litigation</h3><p>Contract disputes, property and collection cases, damages claims, and representation before trial and appellate courts.</p></div>
       <div class="service-card" data-case="CORP"><h3>Corporate Practice</h3><p>Business formation, SEC compliance, contract drafting, and advisory for small and closely-held businesses.</p></div>
@@ -602,11 +636,11 @@
 
 <section class="faqs section" id="faqs">
   <div class="wrap">
-    <div class="section-head">
+    <div class="section-head reveal">
       <div class="section-eyebrow">Frequently Asked</div>
       <h2>Common questions</h2>
     </div>
-    <div class="faq-list">
+    <div class="faq-list reveal">
       <details class="faq-item">
         <summary>How much does an initial consultation cost?<span class="plus">+</span></summary>
         <div class="faq-answer">Consultation fees are discussed upfront based on the nature of your matter — reach out through the contact form or by phone and I'll walk you through it before we meet.</div>
@@ -632,7 +666,7 @@
 </section>
 
 <section class="contact section" id="contact">
-  <div class="wrap contact-grid">
+  <div class="wrap contact-grid reveal">
     <div class="contact-info">
       <div class="section-eyebrow">Get in Touch</div>
       <h2 style="font-size:clamp(26px,3.2vw,34px); margin-bottom:14px;">Let's talk about your case.</h2>
@@ -684,6 +718,26 @@
       <button type="submit" id="contact-submit">Send Message</button>
       <p class="form-note">This form is for general inquiries and does not establish attorney-client privilege.</p>
     </form>
+    <script>
+      // ---------- Scroll reveal ----------
+      const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const revealEls = document.querySelectorAll('.reveal');
+      if (prefersReducedMotion) {
+        revealEls.forEach(el => el.classList.add('in-view'));
+      } else if ('IntersectionObserver' in window) {
+        const revealObserver = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              entry.target.classList.add('in-view');
+              revealObserver.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+        revealEls.forEach(el => revealObserver.observe(el));
+      } else {
+        revealEls.forEach(el => el.classList.add('in-view'));
+      }
+    </script>
     <script>
       // ---------- Mobile menu ----------
       const menuToggle = document.getElementById('menu-toggle');
@@ -791,7 +845,7 @@
       <h2>Ready to protect your rights?</h2>
       <p>Don't face legal challenges alone. Get direct, personally-handled representation for your case — schedule a consultation today.</p>
     </div>
-    <div class="cta-grid">
+    <div class="cta-grid reveal">
       <div class="cta-card">
         <span class="cta-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg></span>
         <h3>Call Direct</h3>
